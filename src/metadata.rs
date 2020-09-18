@@ -3,9 +3,9 @@
 use chrono::offset::Utc;
 use chrono::{DateTime, Duration};
 use log::{debug, warn};
-use serde::de::{Deserialize, DeserializeOwned, Deserializer, Error as DeserializeError};
-use serde::ser::{Error as SerializeError, Serialize, Serializer};
-use serde_derive::{Deserialize, Serialize};
+use serde::de::{DeserializeOwned, Deserializer, Error as DeserializeError};
+use serde::ser::{Error as SerializeError, Serializer};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Debug, Display};
 use std::io::Read;

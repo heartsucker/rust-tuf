@@ -1,7 +1,7 @@
 use chrono::offset::{TimeZone, Utc};
 use data_encoding::HEXLOWER;
 use futures_executor::block_on;
-use serde_derive::Deserialize;
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;

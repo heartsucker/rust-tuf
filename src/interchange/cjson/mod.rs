@@ -211,7 +211,7 @@ impl DataInterchange for Json {
     }
 
     /// ```
-    /// # use serde_derive::Deserialize;
+    /// # use serde::Deserialize;
     /// # use serde_json::json;
     /// # use std::collections::HashMap;
     /// # use tuf::interchange::{DataInterchange, Json};
@@ -237,7 +237,7 @@ impl DataInterchange for Json {
     }
 
     /// ```
-    /// # use serde_derive::Serialize;
+    /// # use serde::Serialize;
     /// # use serde_json::json;
     /// # use std::collections::HashMap;
     /// # use tuf::interchange::{DataInterchange, Json};
