@@ -1494,19 +1494,37 @@ mod test {
         });
     }
 
-    #[test]
-    fn versioned_init_consistent_snapshot_false() {
-        block_on(test_versioned_init(false))
+    enum ClientConstructor {
+        TrustedLocal,
+        TrustedRoot,
+        TrustedRootKeys,
     }
 
-    #[test]
-    fn versioned_init_consistent_snapshot_true() {
-        block_on(test_versioned_init(true))
+    macro_rules! versioned_init_test {
+        ($($name:ident($client_constructor:expr, $consistent_snapshot:expr);)+) => {
+            $(
+            #[test]
+            fn $name() {
+                block_on(test_versioned_init($client_constructor, $consistent_snapshot));
+            }
+            )+
+        }
     }
 
-    async fn test_versioned_init(consistent_snapshot: bool) {
-        let repo = EphemeralRepository::<Json>::new();
-        let mut remote = Repository::new(&repo);
+    versioned_init_test! {
+        versioned_init_trusted_local_consistent_snapshot_false(ClientConstructor::TrustedLocal, false);
+        versioned_init_trusted_root_consistent_snapshot_false(ClientConstructor::TrustedRoot, false);
+        versioned_init_trusted_root_keys_consistent_snapshot_false(ClientConstructor::TrustedRootKeys, false);
+
+        versioned_init_trusted_local_consistent_snapshot_true(ClientConstructor::TrustedLocal, true);
+        versioned_init_trusted_root_consistent_snapshot_true(ClientConstructor::TrustedRoot, true);
+        versioned_init_trusted_root_keys_consistent_snapshot_true(ClientConstructor::TrustedRootKeys, true);
+    }
+
+    async fn test_versioned_init(client_constructor: ClientConstructor, consistent_snapshot: bool) {
+        let remote_repo = EphemeralRepository::<Json>::new();
+
+        let mut remote = Repository::new(&remote_repo);
 
         //// First, create the root metadata.
         let root1 = RootMetadataBuilder::new()
@@ -1519,6 +1537,7 @@ mod test {
             .timestamp_key(KEYS[0].public().clone())
             .signed::<Json>(&KEYS[0])
             .unwrap();
+        let raw_root1 = root1.to_raw().unwrap();
 
         let mut root2 = RootMetadataBuilder::new()
             .consistent_snapshot(consistent_snapshot)
@@ -1564,11 +1583,7 @@ mod test {
         let timestamp_path = MetadataPath::from_role(&Role::Timestamp);
 
         remote
-            .store_metadata(
-                &root_path,
-                &MetadataVersion::Number(1),
-                &root1.to_raw().unwrap(),
-            )
+            .store_metadata(&root_path, &MetadataVersion::Number(1), &raw_root1)
             .await
             .unwrap();
 
@@ -1623,16 +1638,43 @@ mod test {
         ////
         // Initialize with root metadata version 1.
         let public_keys = [KEYS[0].public().clone(), KEYS[1].public().clone()];
-        let mut client = Client::with_trusted_root_keys(
-            Config::build().finish().unwrap(),
-            &MetadataVersion::Number(1),
-            1,
-            &public_keys,
-            EphemeralRepository::new(),
-            repo,
-        )
-        .await
-        .unwrap();
+        let mut client = match client_constructor {
+            ClientConstructor::TrustedLocal => {
+                let local_repo = EphemeralRepository::<Json>::new();
+                let mut local = Repository::new(&local_repo);
+
+                local
+                    .store_metadata(&root_path, &MetadataVersion::Number(1), &raw_root1)
+                    .await
+                    .unwrap();
+
+                Client::with_trusted_local(
+                    Config::build().finish().unwrap(),
+                    local_repo,
+                    remote_repo,
+                )
+                .await
+                .unwrap()
+            }
+            ClientConstructor::TrustedRoot => Client::with_trusted_root(
+                Config::build().finish().unwrap(),
+                &raw_root1,
+                EphemeralRepository::new(),
+                remote_repo,
+            )
+            .await
+            .unwrap(),
+            ClientConstructor::TrustedRootKeys => Client::with_trusted_root_keys(
+                Config::build().finish().unwrap(),
+                &MetadataVersion::Number(1),
+                1,
+                &public_keys,
+                EphemeralRepository::new(),
+                remote_repo,
+            )
+            .await
+            .unwrap(),
+        };
 
         ////
         // Ensure client fetched the new version (2).
